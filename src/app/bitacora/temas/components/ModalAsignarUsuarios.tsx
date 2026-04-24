@@ -1,0 +1,328 @@
+"use client";
+
+import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
+import { TemaDto } from "@/app/domain/dtos";
+import { Empleado, TemaInvolucrado } from "@/app/domain/entities";
+import {
+  IoCloseOutline,
+  IoTrashOutline,
+  IoSearchOutline,
+  IoPersonAddOutline,
+  IoPeopleOutline,
+} from "react-icons/io5";
+import { getEmpleados } from "@/app/infrastructure/data-access/empleados/get-empleados";
+import { getInvolucradosByTema } from "@/app/infrastructure/data-access/involucrados/get-involucrados-by-tema";
+import { assignInvolucrado } from "@/app/infrastructure/data-access/involucrados/assign-involucrado";
+import { removeInvolucrado } from "@/app/infrastructure/data-access/involucrados/remove-involucrado";
+
+interface Props {
+  tema: TemaDto;
+  onClose: () => void;
+}
+
+const getInitials = (nombre: string) => {
+  const parts = nombre.trim().split(" ").filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return nombre.slice(0, 2).toUpperCase();
+};
+
+export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
+  const { data: session } = useSession();
+  const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [asignados, setAsignados] = useState<TemaInvolucrado[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [seleccionado, setSeleccionado] = useState<Empleado | null>(null);
+  const [tipoInvolucrado, setTipoInvolucrado] = useState<"Responsable" | "Visualizador">("Responsable");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [removingId, setRemovingId] = useState<number | null>(null);
+
+  const token = (session?.user as any)?.token ?? "";
+
+  const enriquecerAsignados = (
+    lista: TemaInvolucrado[],
+    listaEmpleados: Empleado[]
+  ): TemaInvolucrado[] => {
+    const mapaEmpleados = new Map(listaEmpleados.map((e) => [e.empleado, e.nombreCompleto]));
+    return lista.map((a) => ({
+      ...a,
+      nombreUsuario: a.nombreUsuario ?? mapaEmpleados.get(a.idUsuario) ?? `Empleado ${a.idUsuario}`,
+    }));
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      const [empleadosList, asignadosList] = await Promise.all([
+        getEmpleados(token),
+        getInvolucradosByTema(tema.id, token),
+      ]);
+      const lista = empleadosList ?? [];
+      setEmpleados(lista);
+      setAsignados(enriquecerAsignados(asignadosList ?? [], lista));
+      setLoading(false);
+    };
+    fetchData();
+  }, [tema.id, token]);
+
+  const empleadosFiltrados = useMemo(() => {
+    const q = busqueda.toLowerCase();
+    if (!q) return empleados;
+    return empleados.filter(
+      (e) =>
+        e.nombreCompleto.toLowerCase().includes(q) ||
+        e.descripcionPuesto.toLowerCase().includes(q) ||
+        e.descripcionDepto.toLowerCase().includes(q)
+    );
+  }, [empleados, busqueda]);
+
+  const idsAsignados = useMemo(
+    () => new Set(asignados.map((a) => a.idUsuario)),
+    [asignados]
+  );
+
+  const handleAsignar = async () => {
+    if (!seleccionado) return;
+    setSaving(true);
+    try {
+      await assignInvolucrado(
+        {
+          idTema: tema.id,
+          idUsuario: seleccionado.empleado,
+          tipoInvolucrado,
+          nombreUsuario: seleccionado.nombreCompleto,
+        },
+        token
+      );
+      const updated = await getInvolucradosByTema(tema.id, token);
+      setAsignados(enriquecerAsignados(updated ?? [], empleados));
+      setSeleccionado(null);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemover = async (idUsuarioRemover: number) => {
+    setRemovingId(idUsuarioRemover);
+    try {
+      await removeInvolucrado(tema.id, idUsuarioRemover, token);
+      setAsignados((prev) => prev.filter((a) => a.idUsuario !== idUsuarioRemover));
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-openmodal p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden max-h-[88vh]">
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-100 flex-shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+              Asignar Empleados
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5 max-w-sm truncate">{tema.titulo}</p>
+          </div>
+          <button
+             title="Cerrar modal"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+          >
+            <IoCloseOutline className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0">
+
+          {/* ── Left panel: search + employee list ── */}
+          <div className="flex flex-col w-1/2 border-r border-slate-100 min-h-0">
+
+            {/* Search bar */}
+            <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
+              <div className="relative">
+                <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Nombre, puesto o departamento..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition placeholder:text-slate-400"
+                />
+              </div>
+              {busqueda && (
+                <p className="text-xs text-slate-400 mt-1.5 pl-1">
+                  {empleadosFiltrados.length} resultado{empleadosFiltrados.length !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+
+            {/* Employee list */}
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center h-32 text-sm text-slate-400">
+                  Cargando empleados…
+                </div>
+              ) : empleadosFiltrados.length === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-slate-400">
+                  Sin resultados para &ldquo;{busqueda}&rdquo;
+                </div>
+              ) : (
+                <ul>
+                  {empleadosFiltrados.map((e) => {
+                    const yaAsignado = idsAsignados.has(e.empleado);
+                    const esSeleccionado = seleccionado?.empleado === e.empleado;
+                    return (
+                      <li key={e.empleado} className="border-b border-slate-50 last:border-0">
+                        <button
+                          disabled={yaAsignado}
+                          onClick={() => setSeleccionado(esSeleccionado ? null : e)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-l-2
+                            ${yaAsignado
+                              ? "opacity-40 cursor-not-allowed bg-slate-50 border-transparent"
+                              : esSeleccionado
+                                ? "bg-primary-50 border-primary-500"
+                                : "hover:bg-slate-50 border-transparent hover:border-slate-200"
+                            }`}
+                        >
+                          <div
+                            className={`w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold transition-colors
+                              ${esSeleccionado
+                                ? "bg-primary-600 text-white"
+                                : yaAsignado
+                                  ? "bg-slate-200 text-slate-500"
+                                  : "bg-primary-100 text-primary-800"
+                              }`}
+                          >
+                            {getInitials(e.nombreCompleto)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+                              {e.nombreCompleto}
+                            </p>
+                            <p className="text-xs text-slate-500 truncate mt-0.5">{e.descripcionPuesto}</p>
+                            <p className="text-xs text-slate-400 truncate">{e.descripcionDepto}</p>
+                          </div>
+                          {yaAsignado && (
+                            <span className="flex-shrink-0 text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
+                              Asignado
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* Action bar — appears when an employee is selected */}
+            <div
+              className={`flex-shrink-0 border-t border-primary-100 bg-primary-50 transition-all duration-200 overflow-hidden
+                ${seleccionado ? "max-h-24 opacity-100" : "max-h-0 opacity-0"}`}
+            >
+              {seleccionado && (
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {getInitials(seleccionado.nombreCompleto)}
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 truncate flex-1 min-w-0">
+                    {seleccionado.nombreCompleto}
+                  </p>
+                  <select
+                   title="Responsable|Visualizador"
+                    value={tipoInvolucrado}
+                    onChange={(e) =>
+                      setTipoInvolucrado(e.target.value as "Responsable" | "Visualizador")
+                    }
+                    className="h-8 text-xs border border-primary-200 rounded-lg px-2 outline-none focus:ring-2 focus:ring-primary-300 bg-white text-slate-700 flex-shrink-0"
+                  >
+                    <option value="Responsable">Responsable</option>
+                    <option value="Visualizador">Visualizador</option>
+                  </select>
+                  <button
+                    onClick={handleAsignar}
+                    disabled={saving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-900 text-white rounded-lg text-xs font-semibold hover:bg-primary-800 active:scale-95 transition disabled:opacity-50 flex-shrink-0"
+                  >
+                    <IoPersonAddOutline className="w-3.5 h-3.5" />
+                    {saving ? "Asignando…" : "Asignar"}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Right panel: assigned team ── */}
+          <div className="flex flex-col w-1/2 min-h-0">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 flex-shrink-0">
+              <IoPeopleOutline className="w-4 h-4 text-slate-400" />
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-1">
+                Equipo asignado
+              </p>
+              {asignados.length > 0 && (
+                <span className="bg-primary-100 text-primary-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {asignados.length}
+                </span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {asignados.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center px-8 py-12">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                    <IoPeopleOutline className="w-6 h-6 text-slate-300" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-500">Sin equipo asignado</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Selecciona un empleado de la lista para comenzar
+                  </p>
+                </div>
+              ) : (
+                <ul className="p-3 space-y-2">
+                  {asignados.map((a) => (
+                    <li
+                      key={a.idAsignacion}
+                      className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition group"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0">
+                        {getInitials(a.nombreUsuario ?? "??")}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+                          {a.nombreUsuario}
+                        </p>
+                        <span
+                          className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full mt-1
+                            ${a.tipoInvolucrado === "Responsable"
+                              ? "bg-primary-100 text-primary-800"
+                              : "bg-secondary-100 text-secondary-800"
+                            }`}
+                        >
+                          {a.tipoInvolucrado}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleRemover(a.idUsuario)}
+                        disabled={removingId === a.idUsuario}
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 disabled:opacity-50 flex-shrink-0"
+                        title="Remover empleado"
+                      >
+                        <IoTrashOutline className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+};
