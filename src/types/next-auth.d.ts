@@ -7,6 +7,7 @@ declare module "next-auth" {
       idUsuario?: number;
       rol?: number;
       nombrecompleto?: string;
+      esEmpleadoResponsable?: boolean;
     };
   }
 
@@ -15,5 +16,16 @@ declare module "next-auth" {
     idUsuario?: number;
     rol?: number;
     nombrecompleto?: string;
+    esEmpleadoResponsable?: boolean;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    token?: string;
+    idUsuario?: number;
+    rol?: number;
+    nombrecompleto?: string;
+    esEmpleadoResponsable?: boolean;
   }
 }
