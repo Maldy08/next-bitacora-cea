@@ -1,5 +1,10 @@
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await auth();
+  if (session) {
+    redirect("/bitacora/Dashboard");
+  }
   redirect("/login");
 }

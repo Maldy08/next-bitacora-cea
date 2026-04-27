@@ -61,6 +61,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   jwt: {
     maxAge: SESSION_MAX_AGE,
   },
+  cookies: {
+    sessionToken: {
+      options: {
+        httpOnly: true,
+        sameSite: "lax" as const,
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: SESSION_MAX_AGE,
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
