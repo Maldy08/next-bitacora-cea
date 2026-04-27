@@ -6,6 +6,7 @@ export interface AvanceDto {
   nombreUsuario: string;
   observaciones: string;
   fechaHora: Date;
+  fechaEdicion?: Date | null;
   adjuntos: AdjuntoDto[];
 }
 

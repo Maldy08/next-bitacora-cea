@@ -27,6 +27,13 @@ export class AvancesRepositoryHttpImplementation implements IAvancesRepository {
     return result.data;
   }
 
+  async update(id: number, observaciones: string, token: string): Promise<boolean> {
+    const result = await DbAdapter.put<Result<boolean>>(`avances/${id}`, { observaciones }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return result.succeeded;
+  }
+
   async delete(id: number, token: string): Promise<boolean> {
     const result = await DbAdapter.delete<Result<boolean>>(`avances/${id}`, undefined, {
       headers: { Authorization: `Bearer ${token}` },

@@ -39,6 +39,7 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
   const [removingId, setRemovingId] = useState<number | null>(null);
 
   const token = (session?.user as any)?.token ?? "";
+  const sessionUserId = Number((session?.user as any)?.idUsuario ?? 0);
 
   const enriquecerAsignados = (
     lista: TemaInvolucrado[],
@@ -58,7 +59,7 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
         getEmpleados(token),
         getInvolucradosByTema(tema.id, token),
       ]);
-      const lista = empleadosList ?? [];
+      const lista = (empleadosList ?? []).filter((e) => e.empleado !== sessionUserId);
       setEmpleados(lista);
       setAsignados(enriquecerAsignados(asignadosList ?? [], lista));
       setLoading(false);
@@ -68,14 +69,21 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
 
   const empleadosFiltrados = useMemo(() => {
     const q = busqueda.toLowerCase();
-    if (!q) return empleados;
-    return empleados.filter(
-      (e) =>
-        e.nombreCompleto.toLowerCase().includes(q) ||
-        e.descripcionPuesto.toLowerCase().includes(q) ||
-        e.descripcionDepto.toLowerCase().includes(q)
-    );
-  }, [empleados, busqueda]);
+    const lista = q
+      ? empleados.filter(
+          (e) =>
+            e.nombreCompleto.toLowerCase().includes(q) ||
+            e.descripcionPuesto.toLowerCase().includes(q) ||
+            e.descripcionDepto.toLowerCase().includes(q)
+        )
+      : empleados;
+
+    return [...lista].sort((a, b) => {
+      const aEsDepto = a.deptoUe === tema.idDepartamentoOrigen ? 0 : 1;
+      const bEsDepto = b.deptoUe === tema.idDepartamentoOrigen ? 0 : 1;
+      return aEsDepto - bEsDepto;
+    });
+  }, [empleados, busqueda, tema.idDepartamentoOrigen]);
 
   const idsAsignados = useMemo(
     () => new Set(asignados.map((a) => a.idUsuario)),
@@ -173,11 +181,29 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
                 </div>
               ) : (
                 <ul>
-                  {empleadosFiltrados.map((e) => {
+                  {empleadosFiltrados[0]?.deptoUe === tema.idDepartamentoOrigen && (
+                    <div className="px-4 py-1.5 bg-slate-50 border-b border-slate-100">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        {tema.nombreDepartamento}
+                      </p>
+                    </div>
+                  )}
+                  {empleadosFiltrados.map((e, idx) => {
                     const yaAsignado = idsAsignados.has(e.empleado);
                     const esSeleccionado = seleccionado?.empleado === e.empleado;
+                    const esDepto = e.deptoUe === tema.idDepartamentoOrigen;
+                    const anteriorEraDepto = idx > 0 && empleadosFiltrados[idx - 1].deptoUe === tema.idDepartamentoOrigen;
+                    const esPrimerOtro = !esDepto && anteriorEraDepto;
+
                     return (
                       <li key={e.empleado} className="border-b border-slate-50 last:border-0">
+                        {esPrimerOtro && (
+                          <div className="px-4 py-1.5 bg-slate-50 border-y border-slate-100">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              Otros departamentos
+                            </p>
+                          </div>
+                        )}
                         <button
                           disabled={yaAsignado}
                           onClick={() => setSeleccionado(esSeleccionado ? null : e)}

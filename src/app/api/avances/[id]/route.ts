@@ -3,6 +3,30 @@ import { NextRequest, NextResponse } from "next/server";
 
 const API = process.env.URL_API_CEA;
 
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  const body = await req.json();
+  const res = await fetch(`${API}Bitacora/Avances/Update/${id}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${(session.user as any)?.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "Backend error", detail: text }, { status: res.status });
+  }
+  return NextResponse.json(data, { status: res.status });
+}
+
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
