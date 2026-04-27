@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TemaContadoresDto, TemaDto } from "@/app/domain/dtos";
+import { TemaDto } from "@/app/domain/dtos";
 import { LoadingSpinner } from "@/app/components";
-import { getContadores } from "@/app/infrastructure/data-access/temas/get-contadores";
 import { getTemas } from "@/app/infrastructure/data-access/temas/get-temas";
+import { getTemasByUsuario } from "@/app/infrastructure/data-access/temas/get-temas-by-usuario";
 import Link from "next/link";
 import {
   IoLayersOutline,
@@ -76,20 +76,31 @@ const StatusCard = ({
 };
 
 export const DashboardHome = ({ session }: Props) => {
-  const [contadores, setContadores] = useState<TemaContadoresDto | null>(null);
   const [temas, setTemas] = useState<TemaDto[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = (session?.user as any)?.token ?? "";
+    const esResponsable = Boolean(session?.user?.esEmpleadoResponsable);
+    const idDepartamento = session?.user?.idDepartamento as number | undefined;
+    const idUsuario = session?.user?.idUsuario as number | undefined;
+
     const fetchData = async () => {
       try {
-        const [cont, temasList] = await Promise.all([
-          getContadores(token),
-          getTemas(token),
-        ]);
-        setContadores(cont);
-        setTemas(temasList ?? []);
+        if (esResponsable) {
+          const [todos, misTemas] = await Promise.all([
+            getTemas(token),
+            getTemasByUsuario(idUsuario!, token),
+          ]);
+          const deptTemas = (todos ?? []).filter(
+            (t) => !idDepartamento || t.idDepartamentoOrigen === idDepartamento
+          );
+          const deptIds = new Set(deptTemas.map((t) => t.id));
+          setTemas([...deptTemas, ...(misTemas ?? []).filter((t) => !deptIds.has(t.id))]);
+        } else {
+          const misTemas = await getTemasByUsuario(idUsuario!, token);
+          setTemas(misTemas ?? []);
+        }
       } catch (error) {
         console.error(error);
       } finally {
@@ -101,7 +112,14 @@ export const DashboardHome = ({ session }: Props) => {
 
   if (loading) return <LoadingSpinner />;
 
-  const total = contadores?.totalTemas ?? 0;
+  const total = temas.length;
+  const contadores = {
+    totalTemas:        total,
+    temasPendientes:   temas.filter((t) => t.estado === "Pendiente").length,
+    temasActivos:      temas.filter((t) => t.estado === "Activo").length,
+    temasPausados:     temas.filter((t) => t.estado === "Pausado").length,
+    temasCompletados:  temas.filter((t) => t.estado === "Completado").length,
+  };
 
   return (
     <div className="space-y-6">

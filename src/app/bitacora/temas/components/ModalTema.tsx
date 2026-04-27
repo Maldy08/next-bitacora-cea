@@ -52,7 +52,7 @@ export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
         const payload = {
           ...values,
           id: tema?.id ?? 0,
-          idDepartamentoOrigen: (session?.user as any)?.idUsuario ?? 0,
+          idDepartamentoOrigen: (session?.user as any)?.idDepartamento ?? 0,
           fechaLimite: values.fechaLimite ? new Date(values.fechaLimite) : null,
           estado: values.estado as "Pendiente" | "Activo" | "Pausado" | "Completado",
         };

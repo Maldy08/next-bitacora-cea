@@ -42,6 +42,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             name: data.username,
             email: data.email,
             idUsuario: idEmpleado,
+            idDepartamento: data.userData.depto as number,
             rol: undefined,
             nombrecompleto: data.userData.nombreCompleto,
             esEmpleadoResponsable,
@@ -78,6 +79,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.token = user.token;
         token.idUsuario = user.idUsuario;
+        token.idDepartamento = user.idDepartamento;
         token.rol = user.rol;
         token.nombrecompleto = user.nombrecompleto;
         token.esEmpleadoResponsable = user.esEmpleadoResponsable;
@@ -88,6 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.token = token.token as string | undefined;
         session.user.idUsuario = token.idUsuario as number | undefined;
+        session.user.idDepartamento = token.idDepartamento as number | undefined;
         session.user.rol = token.rol as number | undefined;
         session.user.nombrecompleto = token.nombrecompleto as string | undefined;
         session.user.esEmpleadoResponsable = token.esEmpleadoResponsable as boolean | undefined;

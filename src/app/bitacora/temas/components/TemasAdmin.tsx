@@ -133,6 +133,7 @@ export const TemasAdmin = () => {
   const [filtroEstado, setFiltroEstado] = useState("Todos");
 
   const token = (session?.user as any)?.token ?? "";
+  const idDepartamento = session?.user?.idDepartamento;
 
   const fetchTemas = async () => {
     setLoading(true);
@@ -167,6 +168,7 @@ export const TemasAdmin = () => {
   };
 
   const temasFiltrados = temas
+    .filter((t) => !idDepartamento || t.idDepartamentoOrigen === idDepartamento)
     .filter((t) => filtroEstado === "Todos" || t.estado === filtroEstado)
     .filter((t) => t.titulo.toLowerCase().includes(busqueda.toLowerCase()));
 

@@ -3,6 +3,7 @@ import { DefaultSession, DefaultUser } from "next-auth";
 interface IUser extends DefaultUser {
   token?: string;
   idUsuario?: number;
+  idDepartamento?: number;
   rol?: number;
   nombrecompleto?: string;
   esEmpleadoResponsable?: boolean;
@@ -12,6 +13,7 @@ declare module "next-auth" {
   interface User extends IUser {
     token?: string;
     idUsuario?: number;
+    idDepartamento?: number;
     rol?: number;
     nombrecompleto?: string;
     esEmpleadoResponsable?: boolean;
@@ -26,6 +28,7 @@ declare module "next-auth/jwt" {
   interface JWT extends IUser {
     token?: string;
     idUsuario?: number;
+    idDepartamento?: number;
     rol?: number;
     nombrecompleto?: string;
     esEmpleadoResponsable?: boolean;
