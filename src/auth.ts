@@ -68,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         httpOnly: true,
         sameSite: "lax" as const,
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: process.env.COOKIE_SECURE === "true",
         maxAge: SESSION_MAX_AGE,
       },
     },
