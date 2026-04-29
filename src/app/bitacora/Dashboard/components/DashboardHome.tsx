@@ -13,10 +13,13 @@ import {
   IoPauseCircleOutline,
   IoCheckmarkCircleOutline,
   IoArrowForwardOutline,
+  IoArrowBackOutline,
   IoDocumentTextOutline,
   IoAlertCircleOutline,
   IoCalendarOutline,
 } from "react-icons/io5";
+
+const PAGE_SIZE = 5;
 
 interface Props {
   session: any;
@@ -79,10 +82,11 @@ export const DashboardHome = ({ session }: Props) => {
   const [temas, setTemas] = useState<TemaDto[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const idDepartamento = session?.user?.idDepartamento as number | undefined;
+
   useEffect(() => {
     const token = (session?.user as any)?.token ?? "";
     const esResponsable = Boolean(session?.user?.esEmpleadoResponsable);
-    const idDepartamento = session?.user?.idDepartamento as number | undefined;
     const idUsuario = session?.user?.idUsuario as number | undefined;
 
     const fetchData = async () => {
@@ -111,6 +115,13 @@ export const DashboardHome = ({ session }: Props) => {
   }, [session]);
 
   if (loading) return <LoadingSpinner />;
+
+  const temasPropios = temas.filter(
+    (t) => !idDepartamento || t.idDepartamentoOrigen === idDepartamento
+  );
+  const temasOtros = temas.filter(
+    (t) => idDepartamento && t.idDepartamentoOrigen !== idDepartamento
+  );
 
   const total = temas.length;
   const contadores = {
@@ -191,32 +202,73 @@ export const DashboardHome = ({ session }: Props) => {
         />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold text-slate-800">Temas Recientes</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{temas.length} tema{temas.length !== 1 ? "s" : ""} en total</p>
-          </div>
-          <Link
-            href="/bitacora/temas"
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-900 transition-colors"
-          >
-            Ver todos
-            <IoArrowForwardOutline className="w-3.5 h-3.5" />
-          </Link>
-        </div>
+      <TemasSection titulo="Temas Recientes" temas={temasPropios} />
+      {temasOtros.length > 0 && (
+        <TemasSection titulo="Temas de otros departamentos" temas={temasOtros} />
+      )}
+    </div>
+  );
+};
 
-        <div className="divide-y divide-slate-50">
-          {temas.slice(0, 10).map((tema) => (
-            <TemaRow key={tema.id} tema={tema} />
-          ))}
-          {temas.length === 0 && (
-            <div className="px-6 py-12 text-center text-slate-400 text-sm">
-              No hay temas registrados.
-            </div>
-          )}
+const TemasSection = ({ titulo, temas }: { titulo: string; temas: TemaDto[] }) => {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(temas.length / PAGE_SIZE));
+  const paginated = temas.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h2 className="font-semibold text-slate-800">{titulo}</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {temas.length} tema{temas.length !== 1 ? "s" : ""} en total
+          </p>
         </div>
+        <Link
+          href="/bitacora/temas"
+          className="flex items-center gap-1.5 text-xs font-semibold text-primary-700 hover:text-primary-900 transition-colors"
+        >
+          Ver todos
+          <IoArrowForwardOutline className="w-3.5 h-3.5" />
+        </Link>
       </div>
+
+      <div className="divide-y divide-slate-50">
+        {paginated.map((tema) => (
+          <TemaRow key={tema.id} tema={tema} />
+        ))}
+        {temas.length === 0 && (
+          <div className="px-6 py-12 text-center text-slate-400 text-sm">
+            No hay temas registrados.
+          </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between">
+          <span className="text-xs text-slate-400">
+            Página {page + 1} de {totalPages}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => p - 1)}
+              disabled={page === 0}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <IoArrowBackOutline className="w-3.5 h-3.5" />
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages - 1}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Siguiente
+              <IoArrowForwardOutline className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

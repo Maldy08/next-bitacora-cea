@@ -16,7 +16,11 @@ import {
   IoDocumentTextOutline,
   IoCalendarOutline,
   IoAlertCircleOutline,
+  IoArrowBackOutline,
+  IoArrowForwardOutline,
 } from "react-icons/io5";
+
+const PAGE_SIZE = 5;
 import { ModalTema } from "./ModalTema";
 import { ModalAsignarUsuarios } from "./ModalAsignarUsuarios";
 import Link from "next/link";
@@ -131,6 +135,7 @@ export const TemasAdmin = () => {
   const [temaAsignar, setTemaAsignar] = useState<TemaDto | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
+  const [page, setPage] = useState(0);
 
   const token = (session?.user as any)?.token ?? "";
   const idDepartamento = session?.user?.idDepartamento;
@@ -172,6 +177,9 @@ export const TemasAdmin = () => {
     .filter((t) => filtroEstado === "Todos" || t.estado === filtroEstado)
     .filter((t) => t.titulo.toLowerCase().includes(busqueda.toLowerCase()));
 
+  const totalPages = Math.max(1, Math.ceil(temasFiltrados.length / PAGE_SIZE));
+  const temasPagina = temasFiltrados.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -197,7 +205,7 @@ export const TemasAdmin = () => {
             type="text"
             placeholder="Buscar tema..."
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => { setBusqueda(e.target.value); setPage(0); }}
             className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-400 transition w-56"
           />
         </div>
@@ -205,7 +213,7 @@ export const TemasAdmin = () => {
           {["Todos", ...ESTADOS].map((f) => (
             <button
               key={f}
-              onClick={() => setFiltroEstado(f)}
+              onClick={() => { setFiltroEstado(f); setPage(0); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 filtroEstado === f
                   ? "bg-primary-900 text-white"
@@ -234,7 +242,7 @@ export const TemasAdmin = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {temasFiltrados.map((tema) => {
+                {temasPagina.map((tema) => {
                   const cfg = STATUS_CFG[tema.estado] ?? STATUS_CFG["Pendiente"];
                   const fechaLimite = tema.fechaLimite ? new Date(tema.fechaLimite) : null;
                   const msLeft = fechaLimite ? fechaLimite.getTime() - Date.now() : null;
@@ -313,6 +321,31 @@ export const TemasAdmin = () => {
               </tbody>
             </table>
           </div>
+          {totalPages > 1 && (
+            <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs text-slate-400">
+                Página {page + 1} de {totalPages} · {temasFiltrados.length} tema{temasFiltrados.length !== 1 ? "s" : ""}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={page === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <IoArrowBackOutline className="w-3.5 h-3.5" />
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page >= totalPages - 1}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Siguiente
+                  <IoArrowForwardOutline className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
