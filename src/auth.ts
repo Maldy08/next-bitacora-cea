@@ -103,3 +103,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
 });
+
+
+
+//estatus por avances, cada avance debe tener un estatus independiente del estatus del tema, 
+// al momento de capturar un avance se le muestra al usuario el estatus del tema, por si no lo quiere cambiar, aunque podra cambiarlo.
+
+//verificar que las fechas se guardan con dia y hora, para que se puedan ordenar correctamente, y no solo con la fecha sin hora.
+//en el detalle del tema, mostrar el estatus del tema, y el estatus de cada avance, para que se pueda ver el historial de cambios de estatus.
+//en el detalle del tema, mostrar el historial de cambios de estatus, con la fecha y hora de cada cambio, para que se pueda ver el historial completo del tema.
+//
