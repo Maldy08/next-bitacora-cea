@@ -4,16 +4,21 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { IoCloseOutline, IoCloudUploadOutline } from "react-icons/io5";
 import { createAvance } from "@/app/infrastructure/data-access/avances/create-avance";
+import { EstadoTema } from "@/app/domain/entities/avance";
 
 interface Props {
   idTema: number;
+  estadoActual: EstadoTema;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export const ModalNuevaEntrada = ({ idTema, onClose, onSaved }: Props) => {
+const ESTADOS: EstadoTema[] = ["Pendiente", "Activo", "Pausado", "Completado"];
+
+export const ModalNuevaEntrada = ({ idTema, estadoActual, onClose, onSaved }: Props) => {
   const { data: session } = useSession();
   const [observaciones, setObservaciones] = useState("");
+  const [estado, setEstado] = useState<EstadoTema>(estadoActual);
   const [archivos, setArchivos] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -28,7 +33,7 @@ export const ModalNuevaEntrada = ({ idTema, onClose, onSaved }: Props) => {
     try {
       const token = (session?.user as any)?.token ?? "";
       const idUsuario = (session?.user as any)?.idUsuario ?? 0;
-      await createAvance({ idTema, idUsuario, observaciones }, archivos, token);
+      await createAvance({ idTema, idUsuario, observaciones, estado }, archivos, token);
       onSaved();
       onClose();
     } catch (err) {
@@ -38,6 +43,8 @@ export const ModalNuevaEntrada = ({ idTema, onClose, onSaved }: Props) => {
       setSaving(false);
     }
   };
+
+  const estadoCambiado = estado !== estadoActual;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-openmodal">
@@ -54,13 +61,34 @@ export const ModalNuevaEntrada = ({ idTema, onClose, onSaved }: Props) => {
             <label className="block text-sm font-semibold text-slate-700 mb-1">Avance / Comentario</label>
             <textarea
               value={observaciones}
-              onChange={(e) => { setObservaciones(e.target.value); setError(""); }}
+              onChange={(e) => { setObservaciones(e.target.value.toUpperCase()); setError(""); }}
               rows={5}
-              placeholder="Describe el avance o novedad..."
+              placeholder="DESCRIBE EL AVANCE O NOVEDAD..."
               className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600
                 ${error ? "border-red-500" : "border-slate-300"}`}
             />
             {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Estado del tema</label>
+            <select
+              value={estado}
+              onChange={(e) => setEstado(e.target.value as EstadoTema)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600"
+            >
+              {ESTADOS.map((e) => (
+                <option key={e} value={e}>{e}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              Estado actual del tema: <span className="font-semibold">{estadoActual}</span>
+              {estadoCambiado && (
+                <span className="ml-2 text-amber-700">
+                  · Al guardar, el tema pasará a <span className="font-semibold">{estado}</span>.
+                </span>
+              )}
+            </p>
           </div>
 
           <div>

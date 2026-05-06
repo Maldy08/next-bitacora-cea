@@ -35,8 +35,8 @@ export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
 
   const formik = useFormik({
     initialValues: {
-      titulo: tema?.titulo ?? "",
-      descripcion: tema?.descripcion ?? "",
+      titulo: (tema?.titulo ?? "").toUpperCase(),
+      descripcion: (tema?.descripcion ?? "").toUpperCase(),
       estado: tema?.estado ?? "Pendiente",
       fechaLimite: tema?.fechaLimite
         ? new Date(tema.fechaLimite).toISOString().split("T")[0]
@@ -112,8 +112,11 @@ export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
           <div>
             <label className={labelBase}>Título *</label>
             <input
-              {...formik.getFieldProps("titulo")}
-              placeholder="Ingresa el título del tema"
+              name="titulo"
+              value={formik.values.titulo}
+              onChange={(e) => formik.setFieldValue("titulo", e.target.value.toUpperCase())}
+              onBlur={formik.handleBlur}
+              placeholder="INGRESA EL TÍTULO DEL TEMA"
               className={`${inputBase} ${
                 formik.touched.titulo && formik.errors.titulo
                   ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"
@@ -128,9 +131,12 @@ export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
           <div>
             <label className={labelBase}>Descripción *</label>
             <textarea
-              {...formik.getFieldProps("descripcion")}
+              name="descripcion"
+              value={formik.values.descripcion}
+              onChange={(e) => formik.setFieldValue("descripcion", e.target.value.toUpperCase())}
+              onBlur={formik.handleBlur}
               rows={3}
-              placeholder="Describe el tema a dar seguimiento"
+              placeholder="DESCRIBE EL TEMA A DAR SEGUIMIENTO"
               className={`${inputBase} resize-none ${
                 formik.touched.descripcion && formik.errors.descripcion
                   ? "border-red-400 focus:border-red-400 focus:ring-red-400/20"

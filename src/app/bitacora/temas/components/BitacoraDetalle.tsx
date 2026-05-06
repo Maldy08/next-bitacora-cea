@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { AvanceDto } from "@/app/domain/dtos";
+import { EstadoTema, Tema } from "@/app/domain/entities";
 import { LoadingSpinner } from "@/app/components";
 import {
   IoArrowBackOutline,
@@ -15,7 +16,9 @@ import {
 import Link from "next/link";
 import { ModalNuevaEntrada } from "./ModalNuevaEntrada";
 import { ModalEditarEntrada } from "./ModalEditarEntrada";
+import { EstadoBadge } from "./EstatusBadge";
 import { getAvancesByTema } from "@/app/infrastructure/data-access/bitacora/get-bitacora-by-tema";
+import { getTemaById } from "@/app/infrastructure/data-access/temas/get-tema-by-id";
 
 interface Props {
   idTema: number;
@@ -38,6 +41,7 @@ const getEntradaLabel = (total: number) => `entrada${total !== 1 ? "s" : ""}`;
 
 export const BitacoraDetalle = ({ idTema }: Props) => {
   const { data: session } = useSession();
+  const [tema, setTema] = useState<Tema | null>(null);
   const [entradas, setEntradas] = useState<AvanceDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,11 +49,15 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
 
   const token = session?.user?.token ?? "";
 
-  const fetchEntradas = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getAvancesByTema(idTema, token);
-      setEntradas(data ?? []);
+      const [temaData, avances] = await Promise.all([
+        getTemaById(idTema, token),
+        getAvancesByTema(idTema, token),
+      ]);
+      setTema(temaData ?? null);
+      setEntradas(avances ?? []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -59,22 +67,29 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void fetchEntradas();
-  }, [fetchEntradas]);
+    void fetchData();
+  }, [fetchData]);
 
-  const handleEntradaEditada = (id: number, nuevasObservaciones: string) => {
-    setEntradas((prev) =>
-      prev.map((e) =>
+  const handleEntradaEditada = (id: number, nuevasObservaciones: string, nuevoEstado: EstadoTema) => {
+    setEntradas((prev) => {
+      const next = prev.map((e) =>
         e.idAvance === id
-          ? { ...e, observaciones: nuevasObservaciones, fechaEdicion: new Date() }
+          ? { ...e, observaciones: nuevasObservaciones, estado: nuevoEstado, fechaEdicion: new Date() }
           : e
-      )
-    );
+      );
+      const ultimo = [...next].sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime())[0];
+      if (ultimo?.idAvance === id) {
+        setTema((t) => (t ? { ...t, estado: nuevoEstado } : t));
+      }
+      return next;
+    });
   };
 
   const sessionUserId = Number((session?.user as any)?.idUsuario ?? 0);
   const rol = session?.user?.rol;
   const puedeCapturar = rol === 1 || rol === 2 || rol === undefined;
+
+  const estadoActual: EstadoTema = tema?.estado ?? "Pendiente";
 
   return (
     <div className="space-y-6">
@@ -89,11 +104,20 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
           </Link>
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-800">Bitácora</h1>
-            <p className="text-sm text-slate-500">Registro de avances del tema</p>
+            <p className="text-sm text-slate-500 flex items-center gap-2">
+              <span>Registro de avances del tema</span>
+              {tema && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="font-medium text-slate-600 truncate max-w-[18rem]">{tema.titulo}</span>
+                  <EstadoBadge estado={estadoActual} />
+                </>
+              )}
+            </p>
           </div>
         </div>
 
-        {puedeCapturar && (
+        {puedeCapturar && tema && (
           <button
             onClick={() => setModalOpen(true)}
             className="flex items-center gap-2 bg-primary-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary-800 transition"
@@ -113,7 +137,7 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
           </div>
           <p className="text-sm font-semibold text-slate-600">Sin entradas en la bitácora</p>
           <p className="mt-1 text-xs text-slate-400">Las entradas registradas aparecerán aquí</p>
-          {puedeCapturar && (
+          {puedeCapturar && tema && (
             <button
               onClick={() => setModalOpen(true)}
               className="mt-5 flex items-center gap-2 rounded-lg bg-primary-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
@@ -155,6 +179,7 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
                             <h3 className="truncate text-sm font-bold text-slate-800">
                               {entrada.nombreUsuario}
                             </h3>
+                            {entrada.estado && <EstadoBadge estado={entrada.estado} />}
                             {entrada.fechaEdicion && (
                               <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                                 editado
@@ -209,11 +234,12 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
         </section>
       )}
 
-      {modalOpen && (
+      {modalOpen && tema && (
         <ModalNuevaEntrada
           idTema={idTema}
+          estadoActual={estadoActual}
           onClose={() => setModalOpen(false)}
-          onSaved={fetchEntradas}
+          onSaved={fetchData}
         />
       )}
 

@@ -78,8 +78,11 @@ export const FormLogin = ({ titulo }: Props) => {
               <input
                 type="text"
                 id="email"
+                name="email"
                 autoComplete="off"
-                {...formik.getFieldProps("email")}
+                value={formik.values.email}
+                onChange={(e) => formik.setFieldValue("email", e.target.value.toUpperCase())}
+                onBlur={formik.handleBlur}
                 className={`block h-11 w-full rounded-md border bg-white px-3 text-sm text-slate-950 shadow-sm outline-none transition uppercase
                   placeholder:text-slate-400 focus:border-primary-700 focus:ring-2 focus:ring-primary-700/20
                   ${formik.touched.email && formik.errors.email ? "border-red-500" : "border-slate-300"}`}

@@ -70,6 +70,7 @@ export const Sidebar = ({ user }: SidebarProps) => {
     <>
       {!isOpen && (
         <button
+          title="menu_hamburguesa"
           onClick={() => setIsOpen(true)}
           className="lg:hidden fixed top-3.5 left-4 z-50 bg-primary-900 text-white p-2 rounded-lg shadow-md hover:bg-primary-800 transition"
         >
@@ -87,6 +88,7 @@ export const Sidebar = ({ user }: SidebarProps) => {
 
         {isOpen && (
           <button
+             title="menu_hamburguesa"
             onClick={() => setIsOpen(false)}
             className="absolute top-4 right-3 text-white/40 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition lg:hidden"
           >
@@ -120,7 +122,7 @@ export const Sidebar = ({ user }: SidebarProps) => {
             onNavigate={() => setIsOpen(false)}
           />
 
-          {esEmpleadoResponsable && (
+{/*           {esEmpleadoResponsable && (
             <div className="pt-4">
               <p className="px-3 mb-2.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white/25">
                 Sistema
@@ -156,7 +158,7 @@ export const Sidebar = ({ user }: SidebarProps) => {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </nav>
       </aside>
     </>

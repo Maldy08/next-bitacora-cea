@@ -156,9 +156,9 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
                 <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Nombre, puesto o departamento..."
+                  placeholder="NOMBRE, PUESTO O DEPARTAMENTO..."
                   value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
+                  onChange={(e) => setBusqueda(e.target.value.toUpperCase())}
                   className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:ring-2 focus:ring-primary-300 focus:border-primary-400 transition placeholder:text-slate-400"
                 />
               </div>

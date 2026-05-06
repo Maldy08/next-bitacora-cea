@@ -10,7 +10,9 @@ export class AvanceMapper {
       idUsuario: avance.idUsuario,
       nombreUsuario: avance.nombreUsuario ?? "",
       observaciones: avance.observaciones,
+      estado: avance.estado,
       fechaHora: avance.fechaHora,
+      fechaEdicion: avance.fechaEdicion ?? null,
       adjuntos: avance.adjuntos?.map((a) => ({
         idAdjunto: a.idAdjunto,
         nombre: a.nombre,

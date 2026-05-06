@@ -1,3 +1,5 @@
+import { EstadoTema } from "../entities/avance";
+
 export interface AvanceDto {
   idAvance: number;
   idTema: number;
@@ -5,6 +7,7 @@ export interface AvanceDto {
   idUsuario: number;
   nombreUsuario: string;
   observaciones: string;
+  estado: EstadoTema;
   fechaHora: Date;
   fechaEdicion?: Date | null;
   adjuntos: AdjuntoDto[];

@@ -203,9 +203,9 @@ export const TemasAdmin = () => {
           <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Buscar tema..."
+            placeholder="BUSCAR TEMA..."
             value={busqueda}
-            onChange={(e) => { setBusqueda(e.target.value); setPage(0); }}
+            onChange={(e) => { setBusqueda(e.target.value.toUpperCase()); setPage(0); }}
             className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-400 transition w-56"
           />
         </div>

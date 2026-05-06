@@ -17,6 +17,7 @@ export class AvancesRepositoryHttpImplementation implements IAvancesRepository {
     formData.append("idTema", String(avance.idTema));
     formData.append("idUsuario", String(avance.idUsuario));
     formData.append("observaciones", avance.observaciones ?? "");
+    if (avance.estado) formData.append("estado", avance.estado);
     archivos.forEach((f) => formData.append("adjuntos", f));
 
     const result = await DbAdapter.post<Result<Avance>>("avances", formData as any, {
@@ -27,8 +28,8 @@ export class AvancesRepositoryHttpImplementation implements IAvancesRepository {
     return result.data;
   }
 
-  async update(id: number, observaciones: string, token: string): Promise<boolean> {
-    const result = await DbAdapter.put<Result<boolean>>(`avances/${id}`, { observaciones }, {
+  async update(id: number, observaciones: string, estado: string | undefined, token: string): Promise<boolean> {
+    const result = await DbAdapter.put<Result<boolean>>(`avances/${id}`, { observaciones, estado }, {
       headers: { Authorization: `Bearer ${token}` },
     });
     return result.succeeded;
