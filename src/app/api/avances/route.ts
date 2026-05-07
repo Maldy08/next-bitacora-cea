@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const res = await fetch(`${API}Bitacora/Avances/Create`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${(session.user as any)?.token}`,
+      Authorization: `Bearer ${session.user?.token}`,
       Accept: "application/json",
     },
     body: outgoing,

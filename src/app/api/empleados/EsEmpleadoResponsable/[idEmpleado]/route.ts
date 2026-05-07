@@ -12,7 +12,7 @@ export async function GET(
 
   const { idEmpleado } = await params;
   const res = await fetch(`${API}Empleados/EsEmpleadoResponsable/${idEmpleado}`, {
-    headers: { Authorization: `Bearer ${(session.user as any)?.token}` },
+    headers: { Authorization: `Bearer ${session.user?.token}` },
   });
   const data = await res.json();
   return NextResponse.json(data);

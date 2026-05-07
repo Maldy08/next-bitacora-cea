@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { TemaDto } from "@/app/domain/dtos";
-import { LoadingSpinner } from "@/app/components";
+import { CardGridSkeleton } from "@/app/components";
 import { getTemasByUsuario } from "@/app/infrastructure/data-access/temas/get-temas-by-usuario";
 import {
   IoBookOutline,
@@ -21,14 +21,11 @@ import Link from "next/link";
 const ESTADOS = ["Pendiente", "Activo", "Pausado", "Completado"];
 const PAGE_SIZE = 9;
 
-const STATUS_CFG: Record<
-  string,
-  { badge: string; badgeText: string; bar: string; pctText: string }
-> = {
-  Pendiente:  { badge: "bg-slate-100",  badgeText: "text-slate-700",   bar: "bg-slate-400",   pctText: "text-slate-500"   },
-  Activo:     { badge: "bg-amber-50",   badgeText: "text-amber-700",   bar: "bg-amber-400",   pctText: "text-amber-600"   },
-  Pausado:    { badge: "bg-orange-50",  badgeText: "text-orange-700",  bar: "bg-orange-400",  pctText: "text-orange-600"  },
-  Completado: { badge: "bg-emerald-50", badgeText: "text-emerald-700", bar: "bg-emerald-500", pctText: "text-emerald-600" },
+const STATUS_CFG: Record<string, { badge: string; badgeText: string }> = {
+  Pendiente:  { badge: "bg-slate-100",  badgeText: "text-slate-700"   },
+  Activo:     { badge: "bg-amber-50",   badgeText: "text-amber-700"   },
+  Pausado:    { badge: "bg-orange-50",  badgeText: "text-orange-700"  },
+  Completado: { badge: "bg-emerald-50", badgeText: "text-emerald-700" },
 };
 
 const TemaCard = ({ tema }: { tema: TemaDto }) => {
@@ -38,7 +35,6 @@ const TemaCard = ({ tema }: { tema: TemaDto }) => {
   const msLeft = fechaLimite ? fechaLimite.getTime() - Date.now() : null;
   const isOverdue = msLeft !== null && msLeft < 0 && tema.estado !== "Completado";
   const isNear = msLeft !== null && !isOverdue && msLeft < 7 * 24 * 60 * 60 * 1000;
-  const pct = tema.estado === "Completado" ? 100 : 0;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
@@ -68,27 +64,8 @@ const TemaCard = ({ tema }: { tema: TemaDto }) => {
           </p>
         </div>
 
-        {/* Progreso */}
-        <div>
-          <div className="flex items-end justify-between mb-1.5">
-            <span className="text-xs text-slate-500 font-medium">Progreso</span>
-            <span className="text-xs text-slate-400 font-medium tabular-nums">
-              {tema.totalAvances} avance{tema.totalAvances !== 1 ? "s" : ""}
-            </span>
-          </div>
-          <p className={`text-2xl font-black tabular-nums leading-none mb-2 ${cfg.pctText}`}>
-            {pct}%
-          </p>
-          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${cfg.bar}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-
         {/* Metadata */}
-        <div className="pt-1 border-t border-slate-100 space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center gap-1.5 text-slate-400">
               {isOverdue
@@ -114,13 +91,19 @@ const TemaCard = ({ tema }: { tema: TemaDto }) => {
                 : "Sin registro"}
             </span>
           </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 text-slate-400">
+          <Link
+            href={`/bitacora/temas/${tema.id}`}
+            title="Ver bitácora"
+            className="flex items-center justify-between text-xs rounded-md -mx-1 px-1 py-0.5 hover:bg-primary-50/60 transition-colors group/avances"
+          >
+            <span className="flex items-center gap-1.5 text-slate-400 group-hover/avances:text-primary-700 transition-colors">
               <IoDocumentTextOutline className="w-3.5 h-3.5 shrink-0" />
               Total de avances
             </span>
-            <span className="font-medium text-slate-600 tabular-nums">{tema.totalAvances}</span>
-          </div>
+            <span className="font-medium text-slate-600 tabular-nums group-hover/avances:text-primary-800 group-hover/avances:underline transition-colors">
+              {tema.totalAvances}
+            </span>
+          </Link>
         </div>
       </div>
 
@@ -147,8 +130,8 @@ export const MisTemas = () => {
   const [page, setPage] = useState(0);
 
   useEffect(() => {
-    const idUsuario = (session?.user as any)?.idUsuario;
-    const token = (session?.user as any)?.token ?? "";
+    const idUsuario = session?.user?.idUsuario;
+    const token = session?.user?.token ?? "";
     if (!idUsuario) return;
     const fetchData = async () => {
       setLoading(true);
@@ -198,7 +181,7 @@ export const MisTemas = () => {
       )}
 
       {loading ? (
-        <LoadingSpinner />
+        <CardGridSkeleton count={6} />
       ) : temas.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           <div className="p-5 rounded-2xl bg-slate-100 mb-4">

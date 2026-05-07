@@ -13,7 +13,7 @@ export async function DELETE(
   const { idTema, idUsuario } = await params;
   const res = await fetch(`${API}Bitacora/Involucrados/Remove/${idTema}/${idUsuario}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${(session.user as any)?.token}` },
+    headers: { Authorization: `Bearer ${session.user?.token}` },
   });
   const data = await res.json();
   return NextResponse.json(data);

@@ -17,7 +17,7 @@ const ESTADOS: EstadoTema[] = ["Pendiente", "Activo", "Pausado", "Completado"];
 
 export const ModalEditarEntrada = ({ entrada, onClose, onEditada }: Props) => {
   const { data: session } = useSession();
-  const [observaciones, setObservaciones] = useState((entrada.observaciones ?? "").toUpperCase());
+  const [observaciones, setObservaciones] = useState(entrada.observaciones ?? "");
   const [estado, setEstado] = useState<EstadoTema>(entrada.estado ?? "Pendiente");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -30,9 +30,10 @@ export const ModalEditarEntrada = ({ entrada, onClose, onEditada }: Props) => {
     }
     setSaving(true);
     try {
-      const token = (session?.user as any)?.token ?? "";
-      await updateAvance(entrada.idAvance, observaciones.trim(), estado, token);
-      onEditada(entrada.idAvance, observaciones.trim(), estado);
+      const token = session?.user?.token ?? "";
+      const textoFinal = observaciones.trim().toUpperCase();
+      await updateAvance(entrada.idAvance, textoFinal, estado, token);
+      onEditada(entrada.idAvance, textoFinal, estado);
       onClose();
     } catch (err) {
       console.error(err);
@@ -57,10 +58,10 @@ export const ModalEditarEntrada = ({ entrada, onClose, onEditada }: Props) => {
             <label className="block text-sm font-semibold text-slate-700 mb-1">Avance / Comentario</label>
             <textarea
               value={observaciones}
-              onChange={(e) => { setObservaciones(e.target.value.toUpperCase()); setError(""); }}
+              onChange={(e) => { setObservaciones(e.target.value); setError(""); }}
               rows={5}
               placeholder="DESCRIBE EL AVANCE O NOVEDAD..."
-              className={`w-full border rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600
+              className={`w-full border rounded-lg px-3 py-2 text-sm uppercase outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600
                 ${error ? "border-red-500" : "border-slate-300"}`}
             />
             {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

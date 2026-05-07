@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { AvanceDto } from "@/app/domain/dtos";
-import { EstadoTema, Tema } from "@/app/domain/entities";
-import { LoadingSpinner } from "@/app/components";
+import { EstadoTema, Tema, TemaInvolucrado } from "@/app/domain/entities";
+import { TimelineSkeleton } from "@/app/components";
 import {
   IoArrowBackOutline,
   IoAddOutline,
@@ -12,6 +12,7 @@ import {
   IoDocumentTextOutline,
   IoTimeOutline,
   IoPencilOutline,
+  IoLockClosedOutline,
 } from "react-icons/io5";
 import Link from "next/link";
 import { ModalNuevaEntrada } from "./ModalNuevaEntrada";
@@ -19,6 +20,7 @@ import { ModalEditarEntrada } from "./ModalEditarEntrada";
 import { EstadoBadge } from "./EstatusBadge";
 import { getAvancesByTema } from "@/app/infrastructure/data-access/bitacora/get-bitacora-by-tema";
 import { getTemaById } from "@/app/infrastructure/data-access/temas/get-tema-by-id";
+import { getInvolucradosByTema } from "@/app/infrastructure/data-access/involucrados/get-involucrados-by-tema";
 
 interface Props {
   idTema: number;
@@ -43,6 +45,7 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
   const { data: session } = useSession();
   const [tema, setTema] = useState<Tema | null>(null);
   const [entradas, setEntradas] = useState<AvanceDto[]>([]);
+  const [involucrados, setInvolucrados] = useState<TemaInvolucrado[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [entradaEditando, setEntradaEditando] = useState<AvanceDto | null>(null);
@@ -52,12 +55,14 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [temaData, avances] = await Promise.all([
+      const [temaData, avances, involucradosData] = await Promise.all([
         getTemaById(idTema, token),
         getAvancesByTema(idTema, token),
+        getInvolucradosByTema(idTema, token),
       ]);
       setTema(temaData ?? null);
       setEntradas(avances ?? []);
+      setInvolucrados(involucradosData ?? []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -85,11 +90,43 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
     });
   };
 
-  const sessionUserId = Number((session?.user as any)?.idUsuario ?? 0);
+  const sessionUserId = Number(session?.user?.idUsuario ?? 0);
   const rol = session?.user?.rol;
+  const esResponsableDepto = Boolean(session?.user?.esEmpleadoResponsable);
+  const idDepartamentoUsuario = session?.user?.idDepartamento;
   const puedeCapturar = rol === 1 || rol === 2 || rol === undefined;
 
   const estadoActual: EstadoTema = tema?.estado ?? "Pendiente";
+
+  const esInvolucrado = involucrados.some((i) => i.idUsuario === sessionUserId);
+  const esAdmin = rol === 1;
+  const esResponsableDeDepto =
+    esResponsableDepto &&
+    !!tema &&
+    !!idDepartamentoUsuario &&
+    tema.idDepartamentoOrigen === idDepartamentoUsuario;
+  const tieneAcceso = !tema || esAdmin || esResponsableDeDepto || esInvolucrado;
+
+  if (!loading && tema && !tieneAcceso) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-20 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm">
+          <IoLockClosedOutline className="h-7 w-7 text-slate-400" />
+        </div>
+        <p className="text-base font-bold text-slate-700">No tienes acceso a este tema</p>
+        <p className="mt-1 text-sm text-slate-500">
+          Solo los involucrados o el administrador pueden ver esta bitácora.
+        </p>
+        <Link
+          href="/bitacora/temas"
+          className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-800"
+        >
+          <IoArrowBackOutline className="h-4 w-4" />
+          Volver a temas
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -129,7 +166,7 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
       </div>
 
       {loading ? (
-        <LoadingSpinner />
+        <TimelineSkeleton count={4} />
       ) : entradas.length === 0 ? (
         <div className="mx-auto flex max-w-xl flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-6 py-20 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm">
@@ -236,7 +273,7 @@ export const BitacoraDetalle = ({ idTema }: Props) => {
 
       {modalOpen && tema && (
         <ModalNuevaEntrada
-          idTema={idTema}
+          tema={tema}
           estadoActual={estadoActual}
           onClose={() => setModalOpen(false)}
           onSaved={fetchData}

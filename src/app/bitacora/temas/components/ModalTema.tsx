@@ -31,7 +31,7 @@ const labelBase = "block text-[11px] font-bold uppercase tracking-wider text-sla
 export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
   const { data: session } = useSession();
   const isEdit = !!tema;
-  const token = (session?.user as any)?.token ?? "";
+  const token = session?.user?.token ?? "";
 
   const formik = useFormik({
     initialValues: {
@@ -52,7 +52,7 @@ export const ModalTema = ({ tema, onClose, onSaved }: Props) => {
         const payload = {
           ...values,
           id: tema?.id ?? 0,
-          idDepartamentoOrigen: (session?.user as any)?.idDepartamento ?? 0,
+          idDepartamentoOrigen: session?.user?.idDepartamento ?? 0,
           fechaLimite: values.fechaLimite ? new Date(values.fechaLimite) : null,
           estado: values.estado as "Pendiente" | "Activo" | "Pausado" | "Completado",
         };

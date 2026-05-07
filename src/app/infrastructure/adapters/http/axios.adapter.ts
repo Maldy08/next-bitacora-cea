@@ -6,6 +6,21 @@ interface Options {
   params: Record<string, unknown>;
 }
 
+let signingOut = false;
+
+async function handleUnauthorized() {
+  if (signingOut) return;
+  signingOut = true;
+  try {
+    const { toast } = await import("@/app/bitacora/store/useToast");
+    toast.warning("Tu sesión expiró. Redirigiendo al inicio de sesión…");
+    const { signOut } = await import("next-auth/react");
+    await signOut({ callbackUrl: "/login", redirect: true });
+  } catch {
+    if (typeof window !== "undefined") window.location.href = "/login";
+  }
+}
+
 export class AxiosAdapter implements HttpAdapter {
   private axiosInstance: AxiosInstance;
 
@@ -14,6 +29,16 @@ export class AxiosAdapter implements HttpAdapter {
       baseURL: options.baseUrl,
       params: options.params,
     });
+
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error?.response?.status === 401) {
+          handleUnauthorized();
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   async get<T>(url: string, options?: Record<string, unknown>): Promise<T> {

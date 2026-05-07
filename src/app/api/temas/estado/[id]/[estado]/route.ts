@@ -10,7 +10,7 @@ export async function PUT(_: NextRequest, { params }: { params: Promise<{ id: st
   const { id, estado } = await params;
   const res = await fetch(`${API}Bitacora/Temas/UpdateEstado/${id}/${estado}`, {
     method: "PUT",
-    headers: { Authorization: `Bearer ${(session.user as any)?.token}` },
+    headers: { Authorization: `Bearer ${session.user?.token}` },
   });
   const data = await res.json();
   return NextResponse.json(data);

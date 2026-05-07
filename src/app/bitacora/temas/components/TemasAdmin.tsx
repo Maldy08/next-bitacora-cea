@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import { TemaDto } from "@/app/domain/dtos";
-import { LoadingSpinner } from "@/app/components";
+import { TableSkeleton } from "@/app/components";
 import {
   IoPencilOutline,
   IoTrashOutline,
@@ -137,7 +137,7 @@ export const TemasAdmin = () => {
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [page, setPage] = useState(0);
 
-  const token = (session?.user as any)?.token ?? "";
+  const token = session?.user?.token ?? "";
   const idDepartamento = session?.user?.idDepartamento;
 
   const fetchTemas = async () => {
@@ -227,7 +227,7 @@ export const TemasAdmin = () => {
       </div>
 
       {loading ? (
-        <LoadingSpinner />
+        <TableSkeleton rows={6} cols={5} />
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -289,14 +289,18 @@ export const TemasAdmin = () => {
                         )}
                       </td>
                       <td className="px-5 py-3.5">
-                        {tema.totalAvances > 0 ? (
-                          <span className="flex items-center gap-1.5 text-xs text-slate-500 font-medium tabular-nums">
-                            <IoDocumentTextOutline className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {tema.totalAvances}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-300">—</span>
-                        )}
+                        <Link
+                          href={`/bitacora/temas/${tema.id}`}
+                          title="Ver bitácora"
+                          className={`inline-flex items-center gap-1.5 text-xs font-medium tabular-nums rounded-md px-2 py-1 transition-colors ${
+                            tema.totalAvances > 0
+                              ? "text-primary-700 hover:bg-primary-50 hover:text-primary-900"
+                              : "text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+                          }`}
+                        >
+                          <IoDocumentTextOutline className="w-3.5 h-3.5 shrink-0" />
+                          {tema.totalAvances > 0 ? tema.totalAvances : "—"}
+                        </Link>
                       </td>
                       <td className="px-5 py-3.5">
                         <MenuAcciones

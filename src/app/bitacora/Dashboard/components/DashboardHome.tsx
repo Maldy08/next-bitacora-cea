@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { TemaDto } from "@/app/domain/dtos";
-import { LoadingSpinner } from "@/app/components";
+import { DashboardSkeleton } from "@/app/components";
 import { getTemas } from "@/app/infrastructure/data-access/temas/get-temas";
 import { getTemasByUsuario } from "@/app/infrastructure/data-access/temas/get-temas-by-usuario";
 import Link from "next/link";
@@ -85,7 +85,7 @@ export const DashboardHome = ({ session }: Props) => {
   const idDepartamento = session?.user?.idDepartamento as number | undefined;
 
   useEffect(() => {
-    const token = (session?.user as any)?.token ?? "";
+    const token = session?.user?.token ?? "";
     const esResponsable = Boolean(session?.user?.esEmpleadoResponsable);
     const idUsuario = session?.user?.idUsuario as number | undefined;
 
@@ -114,7 +114,7 @@ export const DashboardHome = ({ session }: Props) => {
     fetchData();
   }, [session]);
 
-  if (loading) return <LoadingSpinner />;
+  if (loading) return <DashboardSkeleton />;
 
   const temasPropios = temas.filter(
     (t) => !idDepartamento || t.idDepartamentoOrigen === idDepartamento
@@ -131,6 +131,19 @@ export const DashboardHome = ({ session }: Props) => {
     temasPausados:     temas.filter((t) => t.estado === "Pausado").length,
     temasCompletados:  temas.filter((t) => t.estado === "Completado").length,
   };
+
+  const ahora = Date.now();
+  const SIETE_DIAS = 7 * 24 * 60 * 60 * 1000;
+  const temasConFecha = temas.filter(
+    (t) => t.fechaLimite && t.estado !== "Completado"
+  );
+  const temasVencidos = temasConFecha.filter(
+    (t) => new Date(t.fechaLimite!).getTime() - ahora < 0
+  );
+  const temasPorVencer = temasConFecha.filter((t) => {
+    const diff = new Date(t.fechaLimite!).getTime() - ahora;
+    return diff >= 0 && diff < SIETE_DIAS;
+  });
 
   return (
     <div className="space-y-6">
@@ -201,6 +214,13 @@ export const DashboardHome = ({ session }: Props) => {
           labelColor="text-emerald-700"
         />
       </div>
+
+      {(temasVencidos.length > 0 || temasPorVencer.length > 0) && (
+        <AlertasFechaLimite
+          vencidos={temasVencidos}
+          porVencer={temasPorVencer}
+        />
+      )}
 
       <TemasSection titulo="Temas Recientes" temas={temasPropios} />
       {temasOtros.length > 0 && (
@@ -273,6 +293,65 @@ const TemasSection = ({ titulo, temas }: { titulo: string; temas: TemaDto[] }) =
   );
 };
 
+const AlertasFechaLimite = ({
+  vencidos,
+  porVencer,
+}: {
+  vencidos: TemaDto[];
+  porVencer: TemaDto[];
+}) => {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {vencidos.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50/60 p-4 flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-red-100 text-red-600 shrink-0">
+            <IoAlertCircleOutline className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-bold text-red-700">
+                {vencidos.length} tema{vencidos.length !== 1 ? "s" : ""} vencido{vencidos.length !== 1 ? "s" : ""}
+              </p>
+              <Link
+                href="/bitacora/temas"
+                className="text-[11px] font-semibold text-red-600 hover:text-red-800"
+              >
+                Ver
+              </Link>
+            </div>
+            <p className="text-xs text-red-600/80 mt-0.5">
+              Pasaron su fecha límite y siguen sin completarse.
+            </p>
+          </div>
+        </div>
+      )}
+      {porVencer.length > 0 && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-4 flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-orange-100 text-orange-600 shrink-0">
+            <IoTimeOutline className="w-5 h-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-sm font-bold text-orange-700">
+                {porVencer.length} tema{porVencer.length !== 1 ? "s" : ""} por vencer
+              </p>
+              <Link
+                href="/bitacora/temas"
+                className="text-[11px] font-semibold text-orange-600 hover:text-orange-800"
+              >
+                Ver
+              </Link>
+            </div>
+            <p className="text-xs text-orange-600/80 mt-0.5">
+              Vencen en menos de 7 días.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const STATUS_CONFIG: Record<string, { dot: string; badge: string; badgeText: string }> = {
   Pendiente: { dot: "bg-slate-400",   badge: "bg-slate-100",   badgeText: "text-slate-600"  },
   Activo:    { dot: "bg-amber-400",   badge: "bg-amber-50",    badgeText: "text-amber-700"  },
@@ -289,14 +368,30 @@ const TemaRow = ({ tema }: { tema: TemaDto }) => {
   const isOverdue = msLeft !== null && msLeft < 0 && tema.estado !== "Completado";
   const isNear = msLeft !== null && !isOverdue && msLeft < 7 * 24 * 60 * 60 * 1000;
 
+  const rowAccent = isOverdue
+    ? "bg-red-50/40 border-l-4 border-l-red-400 hover:bg-red-50/70"
+    : isNear
+      ? "bg-orange-50/30 border-l-4 border-l-orange-300 hover:bg-orange-50/60"
+      : "border-l-4 border-l-transparent hover:bg-slate-50/70";
+
   return (
-    <div className="px-6 py-3.5 flex items-center gap-4 hover:bg-slate-50/70 transition-colors group">
+    <Link
+      href={`/bitacora/temas/${tema.id}`}
+      className={`px-6 py-3.5 flex items-center gap-4 transition-colors group cursor-pointer ${rowAccent}`}
+    >
       <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-primary-900 transition-colors">
-          {tema.titulo}
-        </p>
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-primary-900 transition-colors">
+            {tema.titulo}
+          </p>
+          {isOverdue && (
+            <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider">
+              Vencido
+            </span>
+          )}
+        </div>
         <p className="text-[11px] text-slate-400 truncate mt-0.5">{tema.nombreDepartamento ?? "—"}</p>
       </div>
 
@@ -311,7 +406,7 @@ const TemaRow = ({ tema }: { tema: TemaDto }) => {
         {fechaLimite ? (
           <span
             className={`flex items-center gap-1 text-[11px] font-medium ${
-              isOverdue ? "text-red-500" : isNear ? "text-orange-500" : "text-slate-400"
+              isOverdue ? "text-red-600" : isNear ? "text-orange-600" : "text-slate-400"
             }`}
           >
             {isOverdue
@@ -328,6 +423,6 @@ const TemaRow = ({ tema }: { tema: TemaDto }) => {
           {tema.estado}
         </span>
       </div>
-    </div>
+    </Link>
   );
 };

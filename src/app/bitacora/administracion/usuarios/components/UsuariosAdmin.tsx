@@ -5,7 +5,7 @@ import { DbAdapter } from "@/app/infrastructure/adapters/db.adapter";
 import { Result } from "@/app/domain/common/result";
 import { Usuario } from "@/app/domain/entities";
 import { UsuarioMapper } from "@/app/infrastructure/mappers/usuario.mapper";
-import { LoadingSpinner } from "@/app/components";
+import { TableSkeleton } from "@/app/components";
 
 const rolDescripcion = (rol: number) => {
   if (rol === 1) return { label: "Administrador", classes: "bg-red-100 text-red-800" };
@@ -40,7 +40,7 @@ export const UsuariosAdmin = () => {
       </div>
 
       {loading ? (
-        <LoadingSpinner />
+        <TableSkeleton rows={6} cols={4} />
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">

@@ -8,7 +8,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const res = await fetch(`${API}Bitacora/Empleados/GetAll`, {
-    headers: { Authorization: `Bearer ${(session.user as any)?.token}` },
+    headers: { Authorization: `Bearer ${session.user?.token}` },
   });
   const data = await res.json();
   return NextResponse.json(data);

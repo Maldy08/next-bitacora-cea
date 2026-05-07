@@ -10,11 +10,17 @@ import {
   IoSearchOutline,
   IoPersonAddOutline,
   IoPeopleOutline,
+  IoMailOutline,
+  IoMailUnreadOutline,
 } from "react-icons/io5";
 import { getEmpleados } from "@/app/infrastructure/data-access/empleados/get-empleados";
 import { getInvolucradosByTema } from "@/app/infrastructure/data-access/involucrados/get-involucrados-by-tema";
 import { assignInvolucrado } from "@/app/infrastructure/data-access/involucrados/assign-involucrado";
 import { removeInvolucrado } from "@/app/infrastructure/data-access/involucrados/remove-involucrado";
+import { sendEmail } from "@/app/infrastructure/data-access/email/sendmail";
+import { generateEmailDataTemaAsignado } from "./generarCorreoTema";
+import { toast } from "@/app/bitacora/store/useToast";
+import { EmployeeListSkeleton } from "@/app/components";
 
 interface Props {
   tema: TemaDto;
@@ -37,9 +43,10 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<number | null>(null);
 
-  const token = (session?.user as any)?.token ?? "";
-  const sessionUserId = Number((session?.user as any)?.idUsuario ?? 0);
+  const token = session?.user?.token ?? "";
+  const sessionUserId = Number(session?.user?.idUsuario ?? 0);
 
   const enriquecerAsignados = (
     lista: TemaInvolucrado[],
@@ -93,31 +100,89 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
   const handleAsignar = async () => {
     if (!seleccionado) return;
     setSaving(true);
+    const empleadoAsignado = seleccionado;
+    const rol = tipoInvolucrado;
     try {
       await assignInvolucrado(
         {
           idTema: tema.id,
-          idUsuario: seleccionado.empleado,
-          tipoInvolucrado,
-          nombreUsuario: seleccionado.nombreCompleto,
+          idUsuario: empleadoAsignado.empleado,
+          tipoInvolucrado: rol,
+          nombreUsuario: empleadoAsignado.nombreCompleto,
         },
         token
       );
       const updated = await getInvolucradosByTema(tema.id, token);
       setAsignados(enriquecerAsignados(updated ?? [], empleados));
       setSeleccionado(null);
+
+      const tieneCorreo = !!empleadoAsignado.correo?.trim();
+      if (tieneCorreo) {
+        toast.success(`${empleadoAsignado.nombreCompleto} asignado. Notificando por correo…`);
+        notificarPorCorreo(empleadoAsignado, rol);
+      } else {
+        toast.warning(`${empleadoAsignado.nombreCompleto} asignado, pero no tiene correo registrado.`);
+      }
     } catch (error) {
       console.error(error);
+      toast.error("No se pudo asignar al empleado.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRemover = async (idUsuarioRemover: number) => {
+  const notificarPorCorreo = async (
+    empleado: Empleado,
+    rol: "Responsable" | "Visualizador"
+  ) => {
+    const correo = empleado.correo?.trim();
+    if (!correo) return;
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+
+    const asignadoPor =
+      session?.user?.nombrecompleto ||
+      session?.user?.name ||
+      "Sistema";
+
+    const emailData = generateEmailDataTemaAsignado(
+      correo,
+      empleado.nombreCompleto,
+      `${appUrl}/bitacora/temas`,
+      tema.titulo,
+      tema.descripcion,
+      tema.estado,
+      tema.nombreDepartamento,
+      tema.fechaLimite,
+      rol,
+      asignadoPor
+    );
+
+    try {
+      const res = await sendEmail(emailData);
+      if (res?.mensaje === "Ok") {
+        toast.success(`Correo enviado a ${correo}.`);
+      } else {
+        toast.warning(`No se pudo enviar el correo a ${correo}.`);
+      }
+    } catch (err) {
+      console.error("No se pudo enviar el correo de notificación:", err);
+      toast.warning(`No se pudo enviar el correo a ${correo}.`);
+    }
+  };
+
+  const handleRemover = async (idUsuarioRemover: number, nombre: string) => {
     setRemovingId(idUsuarioRemover);
+    setConfirmRemoveId(null);
     try {
       await removeInvolucrado(tema.id, idUsuarioRemover, token);
       setAsignados((prev) => prev.filter((a) => a.idUsuario !== idUsuarioRemover));
+      toast.success(`${nombre} fue removido del tema.`);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudo remover al empleado.");
     } finally {
       setRemovingId(null);
     }
@@ -172,9 +237,7 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
             {/* Employee list */}
             <div className="flex-1 overflow-y-auto">
               {loading ? (
-                <div className="flex items-center justify-center h-32 text-sm text-slate-400">
-                  Cargando empleados…
-                </div>
+                <EmployeeListSkeleton count={6} />
               ) : empleadosFiltrados.length === 0 ? (
                 <div className="flex items-center justify-center h-32 text-sm text-slate-400">
                   Sin resultados para &ldquo;{busqueda}&rdquo;
@@ -227,9 +290,22 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
                             {getInitials(e.nombreCompleto)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
-                              {e.nombreCompleto}
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+                                {e.nombreCompleto}
+                              </p>
+                              {e.correo?.trim() ? (
+                                <IoMailOutline
+                                  className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0"
+                                  title={`Recibirá notificación en ${e.correo}`}
+                                />
+                              ) : (
+                                <IoMailUnreadOutline
+                                  className="w-3.5 h-3.5 text-amber-500 flex-shrink-0"
+                                  title="Sin correo registrado — no recibirá notificación"
+                                />
+                              )}
+                            </div>
                             <p className="text-xs text-slate-500 truncate mt-0.5">{e.descripcionPuesto}</p>
                             <p className="text-xs text-slate-400 truncate">{e.descripcionDepto}</p>
                           </div>
@@ -332,14 +408,33 @@ export const ModalAsignarUsuarios = ({ tema, onClose }: Props) => {
                           {a.tipoInvolucrado}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleRemover(a.idUsuario)}
-                        disabled={removingId === a.idUsuario}
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 disabled:opacity-50 flex-shrink-0"
-                        title="Remover empleado"
-                      >
-                        <IoTrashOutline className="w-4 h-4" />
-                      </button>
+                      {confirmRemoveId === a.idUsuario ? (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => handleRemover(a.idUsuario, a.nombreUsuario ?? "Empleado")}
+                            disabled={removingId === a.idUsuario}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition disabled:opacity-50"
+                          >
+                            {removingId === a.idUsuario ? "Quitando…" : "Confirmar"}
+                          </button>
+                          <button
+                            onClick={() => setConfirmRemoveId(null)}
+                            disabled={removingId === a.idUsuario}
+                            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-100 transition disabled:opacity-50"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmRemoveId(a.idUsuario)}
+                          disabled={removingId === a.idUsuario}
+                          className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition opacity-0 group-hover:opacity-100 disabled:opacity-50 flex-shrink-0"
+                          title="Remover empleado"
+                        >
+                          <IoTrashOutline className="w-4 h-4" />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

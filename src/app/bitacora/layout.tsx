@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { Footer, Header, Sidebar } from "../components";
+import { Footer, Header, Sidebar, Toaster } from "../components";
 
 export default async function BitacoraLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -20,6 +20,7 @@ export default async function BitacoraLayout({ children }: { children: React.Rea
         </div>
         <Footer />
       </div>
+      <Toaster />
     </div>
   );
 }
